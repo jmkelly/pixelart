@@ -70,7 +70,7 @@ $ python3 pixelart.py test_3color.png
 With ANSI color support (requires a modern terminal like iTerm2, Kitty, or Windows Terminal):
 
 ```bash
-python3 pixelart.py output.png80
+python3 pixelart.py output.png 80
 ```
 
 The output preserves the original colors using true 24-bit ANSI escape codes.
