@@ -58,12 +58,12 @@ A red-to-green-to-blue gradient converts to:
 ```
 $python3 pixelart.py output.png
 ```                                                                              
-![Screenshot demo 1](Screenshot%20from%2026-04-06%2015-44-56.png)
+![Screenshot demo 1](screenshots/screenshot-demo-1.png)
 
 ```
 $ python3 pixelart.py test_3color.png 
 ```
-![Screenshot demo 2](Screenshot%20from%2026-04-06%2015-45-17.png)
+![Screenshot demo 2](screenshots/screenshot-demo-2.png)
 
 ### Full Color Output
 
