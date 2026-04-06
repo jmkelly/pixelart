@@ -127,33 +127,12 @@ def infer_background_is_light(grayscale: Image.Image, alpha: Image.Image) -> boo
     return mean_border_luminance(grayscale, alpha) >= 127
 
 
-def boost_braille_density(grayscale: Image.Image) -> Image.Image:
-    return grayscale.point(lambda value: min(255, round(value * BRAILLE_DENSITY_BOOST)))
-
-
-def build_active_mask(image: Image.Image) -> list[list[bool]]:
-    grayscale = ImageOps.grayscale(image)
-    alpha = image.getchannel("A")
-
-    if infer_background_is_light(grayscale, alpha):
-        grayscale = ImageOps.invert(grayscale)
-
-    grayscale = boost_braille_density(grayscale)
-    dithered = grayscale.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
-    alpha_pixels = alpha.load()
-    dithered_pixels = dithered.load()
-    mask: list[list[bool]] = []
-
-    for y in range(image.height):
-        row: list[bool] = []
-        for x in range(image.width):
-            is_active = alpha_pixels[x, y] >= ALPHA_THRESHOLD and bool(
-                dithered_pixels[x, y]
-            )
-            row.append(is_active)
-        mask.append(row)
-
-    return mask
+DITHER_THRESHOLDS = [
+    [0.375, 0.875],
+    [0.125, 0.625],
+    [0.875, 0.375],
+    [0.625, 0.125],
+]
 
 
 def ansi_foreground(r: int, g: int, b: int) -> str:
@@ -161,7 +140,11 @@ def ansi_foreground(r: int, g: int, b: int) -> str:
 
 
 def render_braille(image: Image.Image) -> list[str]:
-    mask = build_active_mask(image)
+    grayscale = ImageOps.grayscale(image)
+    alpha = image.getchannel("A")
+    background_is_light = infer_background_is_light(grayscale, alpha)
+    grayscale_pixels = grayscale.load()
+    alpha_pixels = alpha.load()
     pixels = image.load()
     lines: list[str] = []
 
@@ -173,12 +156,22 @@ def render_braille(image: Image.Image) -> list[str]:
 
             for dy in range(4):
                 for dx in range(2):
-                    if not mask[y + dy][x + dx]:
+                    cx, cy = x + dx, y + dy
+                    if alpha_pixels[cx, cy] < ALPHA_THRESHOLD:
                         continue
 
-                    bits |= 1 << BRAILLE_BIT_BY_OFFSET[(dx, dy)]
-                    r, g, b, _ = pixels[x + dx, y + dy]
-                    active_colors.append((r, g, b))
+                    r, g, b, *_ = pixels[cx, cy]
+                    intensity = (
+                        (max(r, g, b) + min(r, g, b)) / 2 * BRAILLE_DENSITY_BOOST
+                    )
+                    if background_is_light:
+                        intensity = 255 - intensity
+                    boosted = intensity
+                    threshold = DITHER_THRESHOLDS[dy][dx] * 255
+
+                    if boosted >= threshold:
+                        bits |= 1 << BRAILLE_BIT_BY_OFFSET[(dx, dy)]
+                        active_colors.append(pixels[cx, cy])
 
             if bits == 0:
                 segments.append(" ")
